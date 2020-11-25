@@ -1,39 +1,39 @@
 // add our markup to the page
 const root = document.getElementById('root')
 
-const updateStore = async (cRoot, cStore, newState = {}) => {
-    const newStore = cStore.mergeDeep(newState);    
-    await render(cRoot, newStore)
+const updateStore = async (cRoot, cStore, newState = {}, callback = null) => {
+  const newStore = cStore.mergeDeep(newState)
+  await render(cRoot, newStore)
+  if (callback !== null) return callback(newStore)
 }
 
 const render = async (cRoot, state) => {
-    cRoot.innerHTML = App(cRoot, state)
+  cRoot.innerHTML = App(cRoot, state)
 }
- 
-// create content
+
 const App = (cRoot, state) => {
-    const user = state.get('user')
-    const rovers = state.get('rovers') 
-    const selectedRover = state.get('selectedRover') 
-    const roversHtml = rovers && rovers.map((rover) => generateCard(state, rover)).join('')  
-    const selected = !!selectedRover
-    return `
+  const user = state.get('user')
+  const rovers = state.get('rovers')
+  const selectedRoverGal = state.get('selectedRoverGal')
+  const roversHtml = rovers && rovers.map((rover) => GenerateCard(state, rover)).join('')
+  const gal = selectedRoverGal && selectedRoverGal.get('photos') && selectedRoverGal.get('photos').map((photo) => PhotoModal(photo)).join('')
+
+  return `
         <header class="container-fluid">
             Mars Dashboard
         </header>
-        <main class="container-fluid">     
-            <div class="jumbotron"> 
+        <main class="container-fluid">
+            <div class="jumbotron">
                 ${Greeting(user.get('name'))}
-                <p class="lead">Mars rover dashboard that consumes the NASA API</p>                            
-            </div> 
-
-            <div class="row">
-                ${rovers && roversHtml || spinner()}
+                <p class="lead">Mars rover dashboard that consumes the NASA API</p>
             </div>
 
-            ${
-                selected ? selectedRover.get('name') : ''
-            }
+            <div class="row">
+                ${rovers ? roversHtml : Spinner()}
+            </div>
+            <div class="row row-cols-1 row-cols-md-3">
+                ${selectedRoverGal ? gal : ''}
+            </div>
         </main>
         <footer></footer>
     `
@@ -41,116 +41,120 @@ const App = (cRoot, state) => {
 
 // listening for load event because page should load before any JS is called
 window.addEventListener('load', () => {
-    const store = Immutable.Map({
-        user: Immutable.Map({ name: "Student" }), 
-        selectedRover: false,
+  const store = Immutable.Map({
+    user: Immutable.Map({ name: 'Student' }),
+    selectedRover: false,
+    selectedRoverGal: false
+  })
+  render(root, store)
+  getListOfRovers((data) => {
+    const rovers = Immutable.Map({
+      rovers: Immutable.fromJS(data.rovers)
     })
-    render(root, store)
-    getListOfRovers((data) => {
-        console.log(data);
-        const rovers = Immutable.Map({
-            rovers: Immutable.fromJS(data.rovers)  
-        })        
-        updateStore(root, store, rovers)
-    })
-    
+    updateStore(root, store, rovers)
+  })
 })
 
 const Greeting = (name) => {
-    if (name) {
-        return `
-            <h1 class="display-4">Welcome, ${name}!</h1>
-        `
-    }
-
-    return `
-        <h1 class="display-4">Hello!</h1>
-    `
+  if (name) {
+    return `<h1 class="display-4">Welcome, ${name}!</h1>`
+  }
+  return '<h1 class="display-4">Hello!</h1>'
 }
 
-const spinner = () => {
-    return `
+const Spinner = () => {
+  return `
         <div class="spinner-grow" style="width: 3rem; height: 3rem;" role="status">
             <span class="sr-only">Loading...</span>
-        </div> 
+        </div>
     `
 }
 
-const generateCard = (store, rover) => {
-    return (`
+const PhotoModal = (photo) => {
+  const url = photo.get('img_src')
+  const alt = photo.get('camera').get('full_name')
+  const fullCamName = photo.get('camera').get('full_name')
+  const tDate = photo.get('earth_date')
+  const roverName = photo.get('rover').get('name')
+  const lDate = photo.get('rover').get('landing_date')
+  const pLDate = photo.get('rover').get('launch_date')
+  const title = `${roverName} - ${fullCamName}`
+  const status = photo.get('rover').get('status')
+
+  const description = `This is a photo from ${fullCamName} for ${roverName}.<br /><br />
+   ${roverName} has a${status === 'active' ? 'n' : ''} ${status} status.<br /><br />
+   ${roverName} landed on Mars in ${lDate}<br /><br />
+   This project were launched in ${pLDate}<br /><br />
+   This picture were took on ${tDate}
+  `
+  return `
+    <div class="col mb-4">
+        <div class="card h-100">
+            <img src="${url}" class="card-img-top" alt="${alt}">
+            <div class="card-body">
+                <h5 class="card-title">${title}</h5>
+                <p class="card-text">${description}</p>
+            </div>
+        </div>
+    </div>
+    `
+}
+
+const GenerateCard = (store, rover) => {
+  return (`
         <div class="col-sm-6 mb-2">
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">${rover.get('name')}</h5>
                     <p class="card-text">This rover launched in ${rover.get('launch_date')}, land in Mars in ${rover.get('landing_date')} and is now ${rover.get('status')}</p>
-                    <button  class="btn btn-primary" onclick="displayRover(${toStrArgs(store)}, ${toStrArgs(rover)})">See Latest Image</button>
+                    <button  class="btn btn-primary" onclick="displayRover(${toStrArgs(store)}, ${toStrArgs(rover)})">
+                        ${
+                            store.get('selectedRover') && store.get('selectedRover').get('loading') && store.get('selectedRover').get('name') === rover.get('name')
+                            ? `<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+                                Loading...`
+                            : 'See Latest Image'
+                        }
+                    </button>
                 </div>
             </div>
-        </div>       
+        </div>
     `)
 }
 
 const toStrArgs = (args) => {
-    return JSON.stringify(args).replace(/"/g, '\'')
+  return JSON.stringify(args).replace(/"/g, '\'')
 }
- 
+
+// eslint-disable-next-line no-unused-vars
 const displayRover = (store, data) => {
-    const selectedRover = Immutable.Map({
-        selectedRover: Immutable.fromJS(data)
-    })  
-    
-    updateStore(root, Immutable.fromJS(store), selectedRover)
+  const selectedRover = Immutable.Map({
+    selectedRoverGal: false,
+    selectedRover: Immutable.fromJS({ ...data, loading: true })
+  })
+
+  updateStore(root, Immutable.fromJS(store), selectedRover, processRover)
+}
+
+const processRover = (state) => {
+  const currentRover = state.get('selectedRover')
+  getRoverData(currentRover.get('name'), currentRover.get('max_date'), (data) => {
+    console.log(data)
+    const cSelectedRover = Immutable.Map({
+      selectedRoverGal: Immutable.fromJS({ ...data }),
+      selectedRover: Immutable.fromJS({ loading: false })
+    })
+    updateStore(root, state, cSelectedRover)
+  })
 }
 
 const getListOfRovers = (callback) => {
-    fetch(`http://localhost:3000/rovers`)
-        .then(res => res.json())
-        .then(json => callback(json))
+  fetch('http://localhost:3000/rovers')
+    .then(res => res.json())
+    .then(json => callback(json))
 }
 
-const getRoverData = (roverName, callback) => {
-    fetch(`http://localhost:3000/rovers/${roverName}`)
-        .then(res => res.json())
-        .then(json => callback(json))
-}
-
-// Example of a pure function that renders infomation requested from the backend
-const ImageOfTheDay = (apod) => {
-    // If image does not already exist, or it is not from today -- request it again
-    const today = new Date()
-    const photodate = new Date(apod.date)
-    console.log(photodate.getDate(), today.getDate());
-
-    console.log(photodate.getDate() === today.getDate());
-    if (!apod || apod.date === today.getDate() ) {
-        getImageOfTheDay(store)
-    }
-
-    // check if the photo of the day is actually type video!
-    if (apod.media_type === "video") {
-        return (`
-            <p>See today's featured video <a href="${apod.url}">here</a></p>
-            <p>${apod.title}</p>
-            <p>${apod.explanation}</p>
-        `)
-    } else {
-        return (apod.image && `
-            <img src="${apod.image.url}" class="card-img-top" alt="rover image" />            
-        `)
-    }
-}
-
-// ------------------------------------------------------  API CALLS
-// updateStore(store, { apod })
-// Example API call
-const getImageOfTheDay = async (state) => {
-    try {
-        const results = await fetch(`http://localhost:3000/apod`);
-        const json = await results.json();
-        return json;
-
-    } catch (error) {
-        console.error(error);
-        return false;
-    }   
+const getRoverData = (roverName, maxDate, callback) => {
+  fetch(`http://localhost:3000/rovers/${roverName}?max_date=${maxDate}`)
+    .then(res => res.json())
+    .then(json => callback(json))
 }
