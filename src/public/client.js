@@ -138,7 +138,6 @@ const displayRover = (store, data) => {
 const processRover = (state) => {
   const currentRover = state.get('selectedRover')
   getRoverData(currentRover.get('name'), currentRover.get('max_date'), (data) => {
-    console.log(data)
     const cSelectedRover = Immutable.Map({
       selectedRoverGal: Immutable.fromJS({ ...data }),
       selectedRover: Immutable.fromJS({ loading: false })
