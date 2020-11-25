@@ -3,21 +3,13 @@
 body {
   display: flex;
   flex-direction: column;
-  font-family: Arial;
+  font-family: Arial, Helvetica, Verdana, Tahoma, sans-serif;
   min-height: 100vh;
-}
-
-header {
-  /* header styles */
 }
 
 main {
   flex: 1;
   padding: 20px;
-}
-
-footer {
-  /* footer styles */
 }
 
 /* -------------------  TABLET  --------------------- */
